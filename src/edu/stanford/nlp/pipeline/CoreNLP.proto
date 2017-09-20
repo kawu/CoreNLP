@@ -90,6 +90,7 @@ message Sentence {
 
   optional string           text                                = 12;   // Only needed if we're only saving the sentence.
 
+  optional uint32           lineNumber                          = 20;
 
   // Fields set by other annotators in CoreNLP
   optional bool            hasRelationAnnotations              = 51;
@@ -106,6 +107,7 @@ message Sentence {
   optional string          sectionName                         = 61;  // name of section
   optional string          sectionAuthor                       = 62;  // author of section
   optional string          docID                               = 63;  // doc id
+  optional bool            sectionQuoted                       = 64;  // is this sentence in an xml quote in a post
 
   extensions 100 to 255;
 }
@@ -149,7 +151,7 @@ message Token {
   optional string coarseTag         = 33; //  The coarse POS tag (used to store the UPOS tag)
   optional Span conllUTokenSpan     = 34;
   optional string conllUMisc        = 35;
-  optional MapIntString conllUSecondaryDeps = 36;
+  optional MapStringString conllUSecondaryDeps = 36;
   optional string   wikipediaEntity = 37;
 
 
@@ -161,6 +163,7 @@ message Token {
   //  Chinese character info
   optional string chineseChar     = 54;
   optional string chineseSeg      = 55;
+  optional string chineseXMLChar  = 60;
 
   // Section info
   optional string sectionName     = 56;
@@ -203,6 +206,7 @@ message Quote {
   optional uint32 tokenEnd       = 8;
   optional string docid          = 9;
   optional uint32 index          = 10;
+  optional string author         = 11;
 }
 
 //
@@ -520,5 +524,9 @@ message Section {
   optional string author            = 3;
   repeated uint32 sentenceIndexes   = 4;
   optional string datetime          = 5;
+  repeated Quote quotes             = 6;
+  optional uint32 authorCharBegin   = 7;
+  optional uint32 authorCharEnd     = 8;
+  required Token xmlTag             = 9;
 }
 

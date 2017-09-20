@@ -129,8 +129,8 @@ import java.util.regex.Pattern;
 public class TokensRegexNERAnnotator implements Annotator  {
 
   /** A logger for this class */
-  private static Redwood.RedwoodChannels log = Redwood.channels(TokensRegexNERAnnotator.class);
-  protected static final Redwood.RedwoodChannels logger = Redwood.channels("TokenRegexNER");
+  protected static final Redwood.RedwoodChannels logger = Redwood.channels(TokensRegexNERAnnotator.class);
+
   protected static final String PATTERN_FIELD = "pattern";
   protected static final String OVERWRITE_FIELD = "overwrite";
   protected static final String PRIORITY_FIELD = "priority";
@@ -221,8 +221,7 @@ public class TokensRegexNERAnnotator implements Annotator  {
     String prefix = (name != null && !name.isEmpty())? name + ".":"";
     String backgroundSymbol = properties.getProperty(prefix + "backgroundSymbol", DEFAULT_BACKGROUND_SYMBOL);
     String[] backgroundSymbols = COMMA_DELIMITERS_PATTERN.split(backgroundSymbol);
-    String mappingFiles = properties.getProperty(prefix + "mapping",
-            DefaultPaths.DEFAULT_KBP_TOKENSREGEX_NER_SETTINGS);
+    String mappingFiles = properties.getProperty(prefix + "mapping", DefaultPaths.DEFAULT_KBP_TOKENSREGEX_NER_SETTINGS);
     String[] mappings = processListMappingFiles(mappingFiles);
     String validPosRegex = properties.getProperty(prefix + "validpospattern");
     this.posMatchType = PosMatchType.valueOf(properties.getProperty(prefix + "posmatchtype",
@@ -301,9 +300,7 @@ public class TokensRegexNERAnnotator implements Annotator  {
     myLabels.add(null);
     // Always overwrite labels
     for (Entry entry: entries) {
-      for (String type:entry.types) {
-        myLabels.add(type);
-      }
+      Collections.addAll(myLabels, entry.types);
     }
     this.myLabels = Collections.unmodifiableSet(myLabels);
   }
@@ -311,7 +308,7 @@ public class TokensRegexNERAnnotator implements Annotator  {
   @Override
   public void annotate(Annotation annotation) {
     if (verbose) {
-      log.info("Adding TokensRegexNER annotations ... ");
+      logger.info("Adding TokensRegexNER annotations ... ");
     }
 
     List<CoreMap> sentences = annotation.get(CoreAnnotations.SentencesAnnotation.class);
@@ -330,7 +327,7 @@ public class TokensRegexNERAnnotator implements Annotator  {
     }
 
     if (verbose)
-      log.info("done.");
+      logger.info("done.");
   }
 
   private MultiPatternMatcher<CoreMap> createPatternMatcher(Map<SequencePattern<CoreMap>, Entry> patternToEntry) {
@@ -388,7 +385,7 @@ public class TokensRegexNERAnnotator implements Annotator  {
       String str = m.group(g);
       if (commonWords.contains(str)) {
         if (verbose) {
-          log.info("Not annotating (common word) '" + str + "': " +
+          logger.info("Not annotating (common word) '" + str + "': " +
               StringUtils.joinFields(m.groupNodes(g), CoreAnnotations.NamedEntityTagAnnotation.class)
               + " with " + entry.getTypeDescription() + ", sentence is '" + StringUtils.joinWords(tokens, " ") + "'");
         }
@@ -409,7 +406,7 @@ public class TokensRegexNERAnnotator implements Annotator  {
         }
       } else {
         if (verbose) {
-          log.info("Not annotating  '" + m.group(g) + "': " +
+          logger.info("Not annotating  '" + m.group(g) + "': " +
                   StringUtils.joinFields(m.groupNodes(g), CoreAnnotations.NamedEntityTagAnnotation.class)
                   + " with " + entry.getTypeDescription() + ", sentence is '" + StringUtils.joinWords(tokens, " ") + "'");
         }
@@ -457,7 +454,8 @@ public class TokensRegexNERAnnotator implements Annotator  {
   }
 
   private boolean checkOrigNerTags(Entry entry, List<CoreLabel> tokens, int start, int end) {
-    // cdm Aug 2016: Add in a special hack for Chinese KBP 2016 -- always allow a sequence of GPE or LOCATION to overwrite
+    // cdm Aug 2016: Add in a special hack - always allow a sequence of GPE or LOCATION to overwrite
+    // this is the current expected behavior, and the itest expects this.
     boolean specialCasePass = true;
     for (int i = start; i < end; i++) {
       if ( ! isLocationOrGpe(tokens.get(i))) {
@@ -623,6 +621,7 @@ public class TokensRegexNERAnnotator implements Annotator  {
     if (index == null) return -1;
     else return index;
   }
+
   /**
    *  Reads a list of Entries from a mapping file and update the given entries.
    *  Line numbers start from 1.
@@ -665,14 +664,20 @@ public class TokensRegexNERAnnotator implements Annotator  {
       }
     }
 
-    int minFields = Math.min(iPattern, iLastAnnotationField);  // Take minimum of "pattern" and last annotation field
-    int maxFields = headerFields.length;  // Take maximum number of headerFields
+    // Take minimum of "pattern" and last annotation field; add one to it to map array index to minimum length
+    int minLength = Math.max(iPattern, iLastAnnotationField) + 1;
+    int maxLength = headerFields.length;  // Take maximum number of headerFields
     for (String line; (line = mapping.readLine()) != null; ) {
       lineCount ++;
       String[] split = line.split("\t");
-      if (split.length < minFields || split.length > maxFields) {
-        throw new IllegalArgumentException("TokensRegexNERAnnotator " + annotatorName
-            + " ERROR: Provided mapping file is in wrong format. Line " + lineCount + " is bad: " + line);
+      if (split.length < minLength || split.length > maxLength) {
+        String err = "many";
+        if (split.length < minLength) {
+          err = "few";
+        }
+        throw new IllegalArgumentException("TokensRegexNERAnnotator " + annotatorName +
+                " ERROR: Line " + lineCount + " of provided mapping file has too " + err +
+                " tab-separated columns. Line: " + line);
       }
       String regex = split[iPattern].trim();
       String tokensRegex = null;

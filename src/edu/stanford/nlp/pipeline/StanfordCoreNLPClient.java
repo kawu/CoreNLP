@@ -268,9 +268,8 @@ public class StanfordCoreNLPClient extends AnnotationPipeline  {
     serverProperties.setProperty("outputSerializer", ProtobufAnnotationSerializer.class.getName());
 
     // Create a list of all the properties, as JSON map elements
-    List<String> jsonProperties = serverProperties.stringPropertyNames().stream().map(key -> '"' + JSONOutputter.cleanJSON(key) + "\": \"" +
-        JSONOutputter
-            .cleanJSON(serverProperties.getProperty(key)) + '"')
+    List<String> jsonProperties = serverProperties.stringPropertyNames().stream().map(key -> '"' + StringUtils.escapeJsonString(key) +
+            "\": \"" + StringUtils.escapeJsonString(serverProperties.getProperty(key)) + '"')
         .collect(Collectors.toList());
     // Create the JSON object
     this.propsAsJSON = "{ " + StringUtils.join(jsonProperties, ", ") + " }";
@@ -527,6 +526,24 @@ public class StanfordCoreNLPClient extends AnnotationPipeline  {
     }
   }
 
+  public boolean checkStatus(URL serverURL) {
+    try {
+      // 1. Set up the connection
+      HttpURLConnection connection = (HttpURLConnection) serverURL.openConnection();
+      // 1.1 Set authentication
+      if (apiKey != null && apiSecret != null) {
+        String userpass = apiKey + ":" + apiSecret;
+        String basicAuth = "Basic " + new String(Base64.getEncoder().encode(userpass.getBytes()));
+        connection.setRequestProperty("Authorization", basicAuth);
+      }
+
+      connection.setRequestMethod("GET");
+      connection.connect();
+      return connection.getResponseCode() >= 200 && connection.getResponseCode() <= 400;
+    } catch (Throwable t) {
+      throw new RuntimeException(t);
+    }
+  }
 
   /**
    * Runs the entire pipeline on the content of the given text passed in.

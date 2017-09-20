@@ -427,7 +427,7 @@ public class CoreAnnotations {
 
   /**
    * Annotation for the whitespace characters appearing before this word. This
-   * can be filled in by the tokenizer so that the original text string can be
+   * can be filled in by an invertible tokenizer so that the original text string can be
    * reconstructed.
    */
   public static class BeforeAnnotation implements CoreAnnotation<String> {
@@ -439,8 +439,12 @@ public class CoreAnnotations {
 
   /**
    * Annotation for the whitespace characters appear after this word. This can
-   * be filled in by the tokenizer so that the original text string can be
+   * be filled in by an invertible tokenizer so that the original text string can be
    * reconstructed.
+   *
+   * Note: When running a tokenizer token-by-token, in general this field will only
+   * be filled in after the next token is read, so you need to be reading this field
+   * one behind. Be careful about this.
    */
   public static class AfterAnnotation implements CoreAnnotation<String> {
     @Override
@@ -513,9 +517,9 @@ public class CoreAnnotations {
   /**
    * CoNLL-U dep parsing - List of secondary dependencies
    */
-  public static class CoNLLUSecondaryDepsAnnotation implements CoreAnnotation<HashMap<Integer,String>> {
+  public static class CoNLLUSecondaryDepsAnnotation implements CoreAnnotation<HashMap<String,String>> {
     @Override
-    public Class<HashMap<Integer,String>> getType() {
+    public Class<HashMap<String,String>> getType() {
       return ErasureUtils.uncheckedCast(Pair.class);
     }
   }
@@ -721,6 +725,16 @@ public class CoreAnnotations {
   }
 
   /**
+   * The standard key for the answer which is a String
+   */
+  public static class PresetAnswerAnnotation implements CoreAnnotation<String> {
+    @Override
+    public Class<String> getType() {
+      return String.class;
+    }
+  }
+
+  /**
    * The standard key for gold answer which is a String
    */
   public static class GoldAnswerAnnotation implements CoreAnnotation<String> {
@@ -874,9 +888,14 @@ public class CoreAnnotations {
   }
 
   /**
-   * The CoreMap key identifying the offset of the first character of an
-   * annotation. The character with index 0 is the first character in the
+   * The CoreMap key identifying the offset of the first char of an
+   * annotation. The char with index 0 is the first char in the
    * document.
+   *
+   * Note that these are currently measured in terms of UTF-16 char offsets, not codepoints,
+   * so that when non-BMP Unicode characters are present, such a character will add 2 to
+   * the position. On the other hand, these values will work with String#substring() and
+   * you can then calculate the number of codepoints in a substring.
    *
    * This key should be set for any annotation that represents a span of text.
    */
@@ -891,6 +910,11 @@ public class CoreAnnotations {
    * The CoreMap key identifying the offset of the last character after the end
    * of an annotation. The character with index 0 is the first character in the
    * document.
+   *
+   * Note that these are currently measured in terms of UTF-16 char offsets, not codepoints,
+   * so that when non-BMP Unicode characters are present, such a character will add 2 to
+   * the position. On the other hand, these values will work with String#substring() and
+   * you can then calculate the number of codepoints in a substring.
    *
    * This key should be set for any annotation that represents a span of text.
    */
@@ -1183,6 +1207,47 @@ public class CoreAnnotations {
     public Class<Integer> getType() { return ErasureUtils.uncheckedCast(Integer.class); }
   }
 
+  /**
+   * Store the beginning of the author mention for this section
+   */
+  public static class SectionAuthorCharacterOffsetBeginAnnotation implements CoreAnnotation<Integer> {
+    @Override
+    public Class<Integer> getType() { return ErasureUtils.uncheckedCast(Integer.class); }
+  }
+
+  /**
+   * Store the end of the author mention for this section
+   */
+  public static class SectionAuthorCharacterOffsetEndAnnotation implements CoreAnnotation<Integer> {
+    @Override
+    public Class<Integer> getType() { return ErasureUtils.uncheckedCast(Integer.class); }
+  }
+
+  /**
+   * Store the xml tag for the section as a CoreLabel
+   */
+  public static class SectionTagAnnotation implements CoreAnnotation<CoreLabel> {
+    @Override
+    public Class<CoreLabel> getType() { return ErasureUtils.uncheckedCast(CoreLabel.class); }
+  }
+
+  /**
+   * Store a list of CoreMaps representing quotes
+   */
+  public static class QuotesAnnotation implements CoreAnnotation<List<CoreMap>> {
+    @Override
+    public Class<List<CoreMap>> getType() { return ErasureUtils.uncheckedCast(List.class); }
+  }
+
+  /**
+   * Indicate whether a sentence is quoted
+   */
+  public static class QuotedAnnotation implements CoreAnnotation<Boolean> {
+    @Override
+    public Class<Boolean> getType() {
+      return Boolean.class;
+    }
+  }
 
   /**
    * Section of a document
@@ -1969,6 +2034,20 @@ public class CoreAnnotations {
   public static class WikipediaEntityAnnotation implements CoreAnnotation<String>{
     @Override
     public Class<String> getType() { return ErasureUtils.uncheckedCast(String.class); }
+  }
+
+
+  /**
+   * The CoreMap key identifying the annotation's text, as formatted by the
+   * {@link edu.stanford.nlp.naturalli.QuestionToStatementTranslator}.
+   *
+   * This is attached to {@link CoreLabel}s.
+   */
+  public static class StatementTextAnnotation implements CoreAnnotation<String> {
+    @Override
+    public Class<String> getType() {
+      return String.class;
+    }
   }
 
 }

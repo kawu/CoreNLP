@@ -99,12 +99,13 @@ import edu.stanford.nlp.util.logging.Redwood;
  *     get turned into U+00A0 (non-breaking space).  It's dangerous to turn
  *     this off for most of our Stanford NLP software, which assumes no
  *     spaces in tokens. Default is true.
- * <li>normalizeAmpersandEntity: Whether to map the XML &amp;amp; to an
+ * <li>normalizeAmpersandEntity: Whether to map the XML {@code &amp;} to an
  *      ampersand. Default is true.
  * <li>normalizeCurrency: Whether to do some awful lossy currency mappings
  *     to turn common currency characters into $, #, or "cents", reflecting
  *     the fact that nothing else appears in the old PTB3 WSJ.  (No Euro!)
- *     Default is true.
+ *     Default is false. (Note: The default was true through CoreNLP v3.8.0, but we're
+ *     gradually inching our way towards the modern world!)
  * <li>normalizeFractions: Whether to map certain common composed
  *     fraction characters to spelled out letter forms like "1/2".
  *     Default is true.
@@ -199,7 +200,7 @@ public class PTBTokenizer<T extends HasWord> extends AbstractTokenizer<T>  {
    * Constructs a new PTBTokenizer that makes CoreLabel tokens.
    * It optionally returns carriage returns
    * as their own token. CRs come back as Words whose text is
-   * the value of {@code PTBLexer.NEWLINE_TOKEN}.
+   * the value of {@code AbstractTokenizer.NEWLINE_TOKEN}.
    *
    * @param r The Reader to read tokens from
    * @param tokenizeNLs Whether to return newlines as separate tokens
@@ -310,7 +311,7 @@ public class PTBTokenizer<T extends HasWord> extends AbstractTokenizer<T>  {
    *
    * @return string literal inserted for "\n".
    */
-  public static String getNewlineToken() { return PTBLexer.NEWLINE_TOKEN; }
+  public static String getNewlineToken() { return NEWLINE_TOKEN; }
 
   /**
    * Returns a presentable version of the given PTB-tokenized text.
@@ -410,9 +411,8 @@ public class PTBTokenizer<T extends HasWord> extends AbstractTokenizer<T>  {
   /**
    * Returns a presentable version of the given PTB-tokenized words.
    * Pass in a List of Words or a Document and this method will
-   * join the words with spaces and call {@link #ptb2Text(String)} on the
-   * output. This method will take the word() values to prevent additional
-   * text from creeping in (e.g., POS tags).
+   * take the word() values (to prevent additional text from creeping in, e.g., POS tags),
+   * and call {@link #ptb2Text(String)} on the output.
    *
    * @param ptbWords A list of HasWord objects
    * @return A presentable version of the given PTB-tokenized words
@@ -444,7 +444,7 @@ public class PTBTokenizer<T extends HasWord> extends AbstractTokenizer<T>  {
       }
       for (int j = 0; j < numFiles; j++) {
         Reader r = IOUtils.readerFromString(inputFileList.get(j), charset);
-        if (out == null) {
+        if (outputFileList != null) {
           out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputFileList.get(j)), charset));
         }
         numTokens += tokReader(r, out, parseInsidePattern, options, preserveLines, dump, lowerCase);
@@ -492,7 +492,7 @@ public class PTBTokenizer<T extends HasWord> extends AbstractTokenizer<T>  {
           str = obj.toShorterString();
         }
         if (preserveLines) {
-          if (PTBLexer.NEWLINE_TOKEN.equals(origStr)) {
+          if (NEWLINE_TOKEN.equals(origStr)) {
             beginLine = true;
             writer.newLine();
           } else {
@@ -679,7 +679,9 @@ public class PTBTokenizer<T extends HasWord> extends AbstractTokenizer<T>  {
     public void setOptions(String options) {
       this.options = options;
     }
+
   } // end static class PTBTokenizerFactory
+
 
   /**
    * Command-line option specification.
