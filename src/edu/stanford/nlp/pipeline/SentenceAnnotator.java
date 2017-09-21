@@ -8,6 +8,7 @@ import edu.stanford.nlp.util.CoreMap;
 import edu.stanford.nlp.util.RuntimeInterruptedException;
 import edu.stanford.nlp.util.concurrent.InterruptibleMulticoreWrapper;
 import edu.stanford.nlp.util.concurrent.ThreadsafeProcessor;
+import edu.stanford.nlp.util.logging.Redwood;
 
 /**
  * A parent class for annotators which might want to analyze one
@@ -18,6 +19,10 @@ import edu.stanford.nlp.util.concurrent.ThreadsafeProcessor;
  * @author John Bauer
  */
 public abstract class SentenceAnnotator implements Annotator {
+
+  /** JW: A logger for this class */
+  private static final Redwood.RedwoodChannels log = Redwood.channels(ParserAnnotator.class);
+
   protected class AnnotatorProcessor implements ThreadsafeProcessor<CoreMap, CoreMap> {
 
     final Annotation annotation;
@@ -99,6 +104,7 @@ public abstract class SentenceAnnotator implements Annotator {
           if (Thread.interrupted()) {
             throw new RuntimeInterruptedException();
           }
+          log.info("We run `doOneSentence` from SentenceAnnotator now!");
           doOneSentence(annotation, sentence);
         }
       }

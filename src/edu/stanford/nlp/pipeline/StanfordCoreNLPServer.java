@@ -10,6 +10,8 @@ import edu.stanford.nlp.ling.IndexedWord;
 import edu.stanford.nlp.ling.tokensregex.SequenceMatchResult;
 import edu.stanford.nlp.ling.tokensregex.TokenSequenceMatcher;
 import edu.stanford.nlp.ling.tokensregex.TokenSequencePattern;
+import edu.stanford.nlp.parser.common.ParserAnnotations;
+import edu.stanford.nlp.parser.common.ParserConstraint;
 import edu.stanford.nlp.semgraph.SemanticGraphCoreAnnotations;
 import edu.stanford.nlp.semgraph.semgrex.SemgrexMatcher;
 import edu.stanford.nlp.semgraph.semgrex.SemgrexPattern;
@@ -19,6 +21,7 @@ import edu.stanford.nlp.trees.tregex.TregexMatcher;
 import edu.stanford.nlp.trees.*;
 import edu.stanford.nlp.util.*;
 import edu.stanford.nlp.util.logging.Redwood;
+import org.apache.commons.lang3.ObjectUtils;
 
 import javax.net.ssl.*;
 import java.io.*;
@@ -52,6 +55,9 @@ import static java.net.HttpURLConnection.*;
  * @author Arun Chaganty
  */
 public class StanfordCoreNLPServer implements Runnable {
+
+  /** JW: A logger for this class */
+  private static final Redwood.RedwoodChannels log = Redwood.channels(ParserAnnotator.class);
 
   protected HttpServer server;
   @SuppressWarnings("unused")
@@ -248,6 +254,47 @@ public class StanfordCoreNLPServer implements Runnable {
   }
 
   /**
+   * A wrapper over `getDocument` which adds constraints.
+   */
+  private Annotation getDocument(Properties props, HttpExchange httpExchange) throws IOException, ClassNotFoundException {
+    Annotation anno = getDocument_(props, httpExchange);
+    if (anno.containsKey(CoreAnnotations.SentencesAnnotation.class)) {
+      for (CoreMap sentence : anno.get(CoreAnnotations.SentencesAnnotation.class)) {
+        // log.info("HttpExchange: " + httpExchange.toString());
+        List<ParserConstraint> constraints = new ArrayList<>();
+        for (Pair<Integer, Integer> pair : getConstraints(props)) {
+          ParserConstraint constraint = new ParserConstraint(pair.first, pair.second, ".*");
+          log.info("Applying constraint: " + constraint.toString());
+          constraints.add(constraint);
+        }
+        sentence.set(ParserAnnotations.ConstraintAnnotation.class, constraints);
+        // final List<ParserConstraint> constraints = sentence.get(ParserAnnotations.ConstraintAnnotation.class);
+      }
+    }
+    return anno;
+  }
+
+  /**
+   * Obtain the list of constraints from the HTTP request's properties.
+   */
+  private List<Pair<Integer, Integer>> getConstraints(Properties props) {
+    String str = props.getProperty("constraints", "");
+    // log.info("Retrieved the following constraints: " + str);
+    List<Pair<Integer, Integer>> cons = new ArrayList<Pair<Integer, Integer>>();
+    for (String pair : str.split(" ")) {
+      // log.info("Processing constraint: " + pair);
+      String[] elems = pair.split("\\.");
+      if (elems.length == 2) {
+        Integer x = Integer.parseInt(elems[0]);
+        Integer y = Integer.parseInt(elems[1]);
+        // log.info("Adding constraint: " + x.toString() + ", " + y.toString());
+        cons.add(new Pair<Integer, Integer>(x, y));
+      }
+    }
+    return cons;
+  }
+
+  /**
    * Reads the POST contents of the request and parses it into an Annotation object, ready to be annotated.
    * This method can also read a serialized document, if the input format is set to be serialized.
    *
@@ -259,7 +306,7 @@ public class StanfordCoreNLPServer implements Runnable {
    * @throws IOException Thrown if we cannot read the POST data.
    * @throws ClassNotFoundException Thrown if we cannot load the serializer.
    */
-  private Annotation getDocument(Properties props, HttpExchange httpExchange) throws IOException, ClassNotFoundException {
+  private Annotation getDocument_(Properties props, HttpExchange httpExchange) throws IOException, ClassNotFoundException {
     String inputFormat = props.getProperty("inputFormat", "text");
     String date = props.getProperty("date");
     switch (inputFormat) {
@@ -307,7 +354,6 @@ public class StanfordCoreNLPServer implements Runnable {
         throw new IOException("Could not parse input format: " + inputFormat);
     }
   }
-
 
   /**
    * Create (or retrieve) a StanfordCoreNLP object corresponding to these properties.
@@ -701,6 +747,8 @@ public class StanfordCoreNLPServer implements Runnable {
     @Override
     public void handle(HttpExchange httpExchange) throws IOException {
       setHttpExchangeResponseHeaders(httpExchange);
+
+      log.info("Handling HttpExchange: " + httpExchange.getRequestURI());
 
       // Get sentence.
       Properties props;
